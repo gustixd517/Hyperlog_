@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>HyperLog - Tracker de Hipertrofia</title>
     <!-- PWA Web App Manifest -->
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkh5cGVyTG9nIC0gVHJhY2tlciBkZSBIaXBlcnRyb2ZpYSIsCiAgInNob3J0X25hbWUiOiAiSHlwZXJMb2ciLAogICJzdGFydF91cmwiOiAiLiIsCiAgInRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzA5MDkwYiIsCiAgInRoZW1lX2NvbG9yIjogIiMwOTA5MGIiCn0=">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkh5cGVyTG9nIC0gVHJhY2tlciBkZSBIaXBlcnRyb2ZpYSIsCiAgInNob3J0X25hbWUiOiAiSHlwZXJMb2ciLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzA5MDkwYiIsCiAgInRoZW1lX2NvbG9yIjogIiMwOTA5MGIiCn0=">
     <meta name="theme-color" content="#09090b">
     
     <!-- Fonts & Icons -->
@@ -69,7 +69,13 @@
         ::-webkit-scrollbar-thumb { background: #27272e; border-radius: 4px; }
     </style>
 </head>
-<body class="min-h-screen pb-28 text-zinc-100 flex flex-col selection:bg-white selection:text-black">
+<body class="min-h-screen pb-32 text-zinc-100 flex flex-col selection:bg-white selection:text-black">
+
+    <!-- Audio Element Fallback for Background Alarm Sound -->
+    <audio id="alarmAudio" preload="auto">
+        <!-- High pitch synthesized beep sound base64 -->
+        <source src="data:audio/wav;base64,UklGRl9vAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUtvAAB4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4" type="audio/wav">
+    </audio>
 
     <!-- Header Navigation -->
     <header class="sticky top-0 z-40 glass-panel border-b border-zinc-800/80 px-4 py-3 flex items-center justify-between">
@@ -204,23 +210,35 @@
 
     </main>
 
-    <!-- FLOATING TIMER BAR -->
-    <div id="timerBar" class="fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] max-w-md glass-panel p-3 rounded-2xl shadow-2xl border border-zinc-700 flex items-center justify-between z-50 transition-all duration-300 opacity-0 translate-y-32">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-mono font-extrabold text-base shadow-md">
-                <i data-lucide="timer" class="w-5 h-5"></i>
+    <!-- FLOATING TIMER BAR WITH BACKGROUND NOTIFICATION CONTROLS -->
+    <div id="timerBar" class="fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] max-w-md glass-panel p-3 rounded-2xl shadow-2xl border border-zinc-700 flex flex-col gap-2 z-50 transition-all duration-300 opacity-0 translate-y-32">
+        <div class="flex items-center justify-between w-full">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-mono font-extrabold text-base shadow-md">
+                    <i data-lucide="timer" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold text-zinc-400 block">Descanso Activo</span>
+                    <span id="timerDisplay" class="font-mono text-xl font-extrabold text-white">01:30</span>
+                </div>
             </div>
-            <div>
-                <span class="text-[10px] uppercase tracking-wider font-bold text-zinc-400 block">Descanso Activo</span>
-                <span id="timerDisplay" class="font-mono text-xl font-extrabold text-white">01:30</span>
+
+            <div class="flex items-center gap-1.5">
+                <button onclick="addTimerTime(-15)" class="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-xs font-mono font-bold">-15s</button>
+                <button onclick="addTimerTime(15)" class="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-xs font-mono font-bold">+15s</button>
+                <button id="toggleTimerBtn" onclick="toggleTimer()" class="p-2.5 bg-white text-black hover:bg-zinc-200 rounded-xl font-bold transition-transform active:scale-95">
+                    <i id="timerIcon" data-lucide="pause" class="w-4 h-4"></i>
+                </button>
             </div>
         </div>
 
-        <div class="flex items-center gap-2">
-            <button onclick="addTimerTime(-15)" class="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-xs font-mono font-bold">-15s</button>
-            <button onclick="addTimerTime(15)" class="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-xs font-mono font-bold">+15s</button>
-            <button id="toggleTimerBtn" onclick="toggleTimer()" class="p-2.5 bg-white text-black hover:bg-zinc-200 rounded-xl font-bold transition-transform active:scale-95">
-                <i id="timerIcon" data-lucide="pause" class="w-4 h-4"></i>
+        <!-- Background Notifications Activation Switch -->
+        <div class="flex items-center justify-between pt-1 border-t border-zinc-800 text-[11px] px-1">
+            <span class="text-zinc-400 flex items-center gap-1">
+                <i data-lucide="bell" class="w-3 h-3 text-zinc-400"></i> Alarma y Notificación en 2° Plano
+            </span>
+            <button id="notifPermBtn" onclick="requestNotificationPermission()" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-mono font-semibold text-zinc-300 transition-colors flex items-center gap-1">
+                <span id="notifStatusText">Activar</span>
             </button>
         </div>
     </div>
@@ -320,16 +338,98 @@
         // --- 3. APP STATE & LOCAL STORAGE ---
         let selectedDayIndex = 0;
         let sessionData = {}; // Stores live input set state
-        let timerInterval = null;
         let timerTimeLeft = 0;
         let timerTotalTime = 90;
+        let timerWorker = null;
+        let isTimerRunning = false;
+
+        // --- 4. BACKGROUND BLOB WORKER & NOTIFICATION SETUP ---
+        // Create an inline Web Worker via Blob URL so timer won't freeze in background
+        const workerCode = `
+            let timer = null;
+            self.onmessage = function(e) {
+                if (e.data.action === 'start') {
+                    let duration = e.data.duration;
+                    const endTime = Date.now() + duration * 1000;
+                    
+                    if (timer) clearInterval(timer);
+                    timer = setInterval(() => {
+                        const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+                        self.postMessage({ type: 'tick', remaining: remaining });
+                        if (remaining <= 0) {
+                            clearInterval(timer);
+                            self.postMessage({ type: 'finished' });
+                        }
+                    }, 500);
+                } else if (e.data.action === 'stop') {
+                    if (timer) clearInterval(timer);
+                }
+            };
+        `;
+
+        function initTimerWorker() {
+            try {
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                const workerUrl = URL.createObjectURL(blob);
+                timerWorker = new Worker(workerUrl);
+
+                timerWorker.onmessage = function(e) {
+                    if (e.data.type === 'tick') {
+                        timerTimeLeft = e.data.remaining;
+                        updateTimerDisplay();
+                    } else if (e.data.type === 'finished') {
+                        isTimerRunning = false;
+                        document.getElementById('timerIcon').setAttribute('data-lucide', 'play');
+                        lucide.createIcons();
+                        triggerTimerAlert();
+                    }
+                };
+            } catch (err) {
+                console.warn("Web Worker creation fallback:", err);
+            }
+        }
+
+        function checkNotificationPermissionState() {
+            const btnText = document.getElementById('notifStatusText');
+            if (!('Notification' in window)) {
+                btnText.innerText = "No Soportado";
+                return;
+            }
+
+            if (Notification.permission === 'granted') {
+                btnText.innerText = "Activo ✓";
+                document.getElementById('notifPermBtn').className = "px-2.5 py-1 bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 rounded-lg font-mono font-semibold text-[10px]";
+            } else if (Notification.permission === 'denied') {
+                btnText.innerText = "Bloqueado";
+                document.getElementById('notifPermBtn').className = "px-2.5 py-1 bg-red-900/50 text-red-300 rounded-lg font-mono font-semibold text-[10px]";
+            } else {
+                btnText.innerText = "Activar";
+            }
+        }
+
+        async function requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                alert("Tu navegador no soporta notificaciones de sistema.");
+                return;
+            }
+
+            const permission = await Notification.requestPermission();
+            checkNotificationPermissionState();
+            
+            if (permission === 'granted') {
+                // Send test notification to confirm audio/vibration permission
+                new Notification("HyperLog", {
+                    body: "Notificaciones en segundo plano activadas correctamente.",
+                    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'><rect width='100%' height='100%' fill='white'/></svg>"
+                });
+            }
+        }
 
         // Initialize state from LocalStorage or Defaults
         function initAppState() {
             const storedVersion = localStorage.getItem('hyperlog_routine_version');
             const saved = localStorage.getItem('hyperlog_current_session');
 
-            // Upgrade session state if routine version changed or old state exists
             if (storedVersion !== ROUTINE_VERSION) {
                 localStorage.setItem('hyperlog_routine_version', ROUTINE_VERSION);
                 sessionData = {};
@@ -342,6 +442,8 @@
                 }
             }
 
+            initTimerWorker();
+            checkNotificationPermissionState();
             renderRoutine();
             renderVolumeTracker();
             setupNetworkListeners();
@@ -356,7 +458,7 @@
             }
         }
 
-        // --- 4. RENDER ROUTINE VIEW ---
+        // --- 5. RENDER ROUTINE VIEW ---
         function selectRoutineDay(index) {
             selectedDayIndex = index;
             document.querySelectorAll('.routine-day-btn').forEach((btn, idx) => {
@@ -382,7 +484,6 @@
             routine.exercises.forEach((ex) => {
                 const exData = sessionData[ex.id] || { sets: [] };
                 
-                // Ensure default set structure if empty
                 if (!exData.sets || exData.sets.length === 0) {
                     exData.sets = Array.from({ length: ex.defaultSets }, () => ({
                         weight: '',
@@ -445,7 +546,6 @@
                         </button>
                     </div>
 
-                    <!-- Table Headers -->
                     <div class="grid grid-cols-12 gap-1.5 text-[10px] uppercase font-bold text-zinc-400 px-2">
                         <span class="col-span-1 text-center">Set</span>
                         <span class="col-span-3 text-center">Peso</span>
@@ -464,7 +564,7 @@
             lucide.createIcons();
         }
 
-        // --- 5. SET STATE MANAGEMENT ---
+        // --- 6. SET STATE MANAGEMENT ---
         function updateSet(exId, sIdx, field, val) {
             if (!sessionData[exId]) sessionData[exId] = { sets: [] };
             sessionData[exId].sets[sIdx][field] = val;
@@ -478,9 +578,7 @@
             renderRoutine();
 
             if (set.done) {
-                // Trigger Rest Timer automatically on completion
                 startTimer(restSeconds);
-                // Trigger Confetti Animation for set completion
                 confetti({
                     particleCount: 25,
                     spread: 40,
@@ -502,7 +600,7 @@
             renderVolumeTracker();
         }
 
-        // --- 6. ADVANCED METRICS (EPLEY 1RM & VOLUME) ---
+        // --- 7. ADVANCED METRICS (EPLEY 1RM & VOLUME) ---
         function calculateEpley1RM(weight, reps) {
             const w = parseFloat(weight);
             const r = parseFloat(reps);
@@ -547,7 +645,7 @@
             if (!container) return;
             container.innerHTML = '';
 
-            const maxTarget = 20; // 20 sets optimal weekly ceiling
+            const maxTarget = 20;
 
             Object.entries(muscleVolume).forEach(([muscle, count]) => {
                 const percentage = Math.min(100, Math.round((count / maxTarget) * 100));
@@ -567,39 +665,37 @@
             });
         }
 
-        // --- 7. SOUND & VIBRATION REST TIMER ---
+        // --- 8. REST TIMER WITH BACKGROUND SOUND & NOTIFICATIONS ---
         function startTimer(seconds) {
-            clearInterval(timerInterval);
             timerTotalTime = seconds;
             timerTimeLeft = seconds;
+            isTimerRunning = true;
             
             document.getElementById('timerBar').classList.remove('translate-y-32', 'opacity-0');
+            document.getElementById('timerIcon').setAttribute('data-lucide', 'pause');
+            lucide.createIcons();
             updateTimerDisplay();
 
-            timerInterval = setInterval(() => {
-                timerTimeLeft--;
-                updateTimerDisplay();
-
-                if (timerTimeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    triggerTimerAlert();
-                }
-            }, 1000);
+            if (timerWorker) {
+                timerWorker.postMessage({ action: 'start', duration: seconds });
+            }
         }
 
         function addTimerTime(secs) {
             timerTimeLeft = Math.max(0, timerTimeLeft + secs);
             updateTimerDisplay();
+            if (isTimerRunning && timerWorker) {
+                timerWorker.postMessage({ action: 'start', duration: timerTimeLeft });
+            }
         }
 
         function toggleTimer() {
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
+            if (isTimerRunning) {
+                if (timerWorker) timerWorker.postMessage({ action: 'stop' });
+                isTimerRunning = false;
                 document.getElementById('timerIcon').setAttribute('data-lucide', 'play');
             } else {
                 startTimer(timerTimeLeft || 90);
-                document.getElementById('timerIcon').setAttribute('data-lucide', 'pause');
             }
             lucide.createIcons();
         }
@@ -612,31 +708,62 @@
         }
 
         function triggerTimerAlert() {
-            // Haptic vibration feedback
+            // 1. Haptic vibration feedback
             if ('vibrate' in navigator) {
-                navigator.vibrate([200, 100, 200, 100, 400]);
+                navigator.vibrate([300, 150, 300, 150, 500]);
             }
 
-            // Synthesized Web Audio Beep sound
+            // 2. Play HTML5 Audio element fallback (works in background if pre-unlocked)
+            try {
+                const alarmAudio = document.getElementById('alarmAudio');
+                if (alarmAudio) {
+                    alarmAudio.currentTime = 0;
+                    alarmAudio.play().catch(e => console.log("Audio element play error:", e));
+                }
+            } catch(e) {
+                console.log("Audio element error:", e);
+            }
+
+            // 3. Web Audio API Beep synthesis
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start();
-                osc.stop(audioCtx.currentTime + 0.5);
+                osc.stop(audioCtx.currentTime + 1.2);
             } catch(e) {
-                console.log("Audio feedback error:", e);
+                console.log("Web Audio error:", e);
+            }
+
+            // 4. System Native Notification (For Background / Locked Screen)
+            if ('Notification' in window && Notification.permission === 'granted') {
+                try {
+                    const notif = new Notification("HyperLog - Descanso Finalizado", {
+                        body: "¡Tiempo de descanso cumplido! A por la siguiente serie.",
+                        tag: "hyperlog-rest-timer",
+                        renotify: true,
+                        requireInteraction: true,
+                        vibrate: [300, 150, 300, 150, 500]
+                    });
+
+                    notif.onclick = function() {
+                        window.focus();
+                        notif.close();
+                    };
+                } catch(e) {
+                    console.warn("Notification trigger error:", e);
+                }
             }
 
             document.getElementById('timerDisplay').innerText = '00:00';
         }
 
-        // --- 8. FIRESTORE SYNC & WORKOUT COMPLETION ---
+        // --- 9. FIRESTORE SYNC & WORKOUT COMPLETION ---
         async function finishSession() {
             const routine = ROUTINES[selectedDayIndex];
             const workoutRecord = {
@@ -646,7 +773,6 @@
                 exercises: sessionData
             };
 
-            // Confetti Blast
             confetti({
                 particleCount: 100,
                 spread: 70,
@@ -731,7 +857,7 @@
             `).join('');
         }
 
-        // --- 9. NETWORK STATUS & NAVIGATION HELPERS ---
+        // --- 10. NETWORK STATUS & NAVIGATION HELPERS ---
         function setupNetworkListeners() {
             window.addEventListener('online', () => updateSyncStatus(true, "Firebase OK"));
             window.addEventListener('offline', () => updateSyncStatus(false, "Sin Conexión"));
