@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HyperLog - Tracker de Hipertrofia</title>
+    <!-- PWA Web App Manifest -->
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkh5cGVyTG9nIC0gVHJhY2tlciBkZSBIaXBlcnRyb2ZpYSIsCiAgInNob3J0X25hbWUiOiAiSHlwZXJMb2ciLAogICJzdGFydF91cmwiOiAiLiIsCiAgInRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzA5MDkwYiIsCiAgInRoZW1lX2NvbG9yIjogIiMwOTA5MGIiCn0=">
+    <meta name="theme-color" content="#09090b">
+    
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#09090b',
+                            800: '#121215',
+                            700: '#1c1c21',
+                            600: '#27272e',
+                            500: '#3f3f46'
+                        },
+                        accent: {
+                            DEFAULT: '#ffffff',
+                            muted: '#a1a1aa'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            background-color: #09090b;
+            color: #f4f4f5;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .mono-num { font-family: 'JetBrains Mono', monospace; }
+        .glass-panel {
+            background: rgba(18, 18, 21, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            background: rgba(28, 28, 33, 0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #09090b; }
+        ::-webkit-scrollbar-thumb { background: #27272e; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen pb-28 text-zinc-100 flex flex-col selection:bg-white selection:text-black">
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-zinc-800/80 px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-white text-black font-extrabold flex items-center justify-center text-lg tracking-tighter">
+                HL
+            </div>
+            <div>
+                <h1 class="font-bold text-sm tracking-wide uppercase text-white leading-none">HyperLog</h1>
+                <span class="text-[10px] text-zinc-400 font-medium">Rutina Hipertrofia 4 Días (Torso / Pierna)</span>
+            </div>
+        </div>
+
+        <!-- Connection Status & Sync Badge -->
+        <div class="flex items-center gap-2">
+            <button onclick="resetCurrentSession()" class="p-1.5 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg text-xs font-mono transition-colors" title="Reiniciar Rutina Actual">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+            </button>
+            <div id="syncBadge" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono bg-zinc-800/80 text-zinc-300 border border-zinc-700/50">
+                <span id="syncDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span id="syncText" class="text-[11px]">Firebase OK</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- App Container -->
+    <main class="flex-1 max-w-2xl w-full mx-auto p-4 space-y-6">
+
+        <!-- Tab Navigation -->
+        <div class="grid grid-cols-3 bg-zinc-900 p-1 rounded-xl border border-zinc-800 text-xs font-semibold text-center">
+            <button id="tabWorkoutBtn" onclick="switchTab('workout')" class="py-2.5 rounded-lg bg-white text-black font-bold transition-all shadow-sm flex items-center justify-center gap-1.5">
+                <i data-lucide="dumbbell" class="w-4 h-4"></i> Rutina
+            </button>
+            <button id="tabVolumeBtn" onclick="switchTab('volume')" class="py-2.5 rounded-lg text-zinc-400 hover:text-white transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Volumen
+            </button>
+            <button id="tabHistoryBtn" onclick="switchTab('history')" class="py-2.5 rounded-lg text-zinc-400 hover:text-white transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="calendar" class="w-4 h-4"></i> Historial
+            </button>
+        </div>
+
+        <!-- VIEW 1: WORKOUT LOG -->
+        <div id="workoutView" class="space-y-5">
+            <!-- Day Selector Carousel -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button onclick="selectRoutineDay(0)" class="routine-day-btn p-3 rounded-xl glass-card text-left transition-all border-l-2 border-white bg-zinc-800/60" data-day="0">
+                    <span class="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">Día 1</span>
+                    <span class="text-xs font-bold text-white">Torso A</span>
+                </button>
+                <button onclick="selectRoutineDay(1)" class="routine-day-btn p-3 rounded-xl glass-card text-left transition-all opacity-60 hover:opacity-100" data-day="1">
+                    <span class="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">Día 2</span>
+                    <span class="text-xs font-bold text-white">Pierna A</span>
+                </button>
+                <button onclick="selectRoutineDay(2)" class="routine-day-btn p-3 rounded-xl glass-card text-left transition-all opacity-60 hover:opacity-100" data-day="2">
+                    <span class="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">Día 3</span>
+                    <span class="text-xs font-bold text-white">Torso B</span>
+                </button>
+                <button onclick="selectRoutineDay(3)" class="routine-day-btn p-3 rounded-xl glass-card text-left transition-all opacity-60 hover:opacity-100" data-day="3">
+                    <span class="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">Día 4</span>
+                    <span class="text-xs font-bold text-white">Pierna B</span>
+                </button>
+            </div>
+
+            <!-- Routine Header Info -->
+            <div class="glass-panel p-4 rounded-2xl flex items-center justify-between border-l-4 border-white">
+                <div>
+                    <h2 id="activeRoutineTitle" class="font-extrabold text-base tracking-tight text-white">Lunes: Torso A</h2>
+                    <p id="activeRoutineSubtitle" class="text-xs text-zinc-400 mt-0.5">Enfoque Pectoral & Hombro</p>
+                </div>
+                <button onclick="finishSession()" class="px-4 py-2 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-95 flex items-center gap-1.5">
+                    <i data-lucide="check-circle-2" class="w-4 h-4"></i> Guardar
+                </button>
+            </div>
+
+            <!-- Exercises Container -->
+            <div id="exercisesList" class="space-y-4">
+                <!-- Exercises dynamically injected here -->
+            </div>
+        </div>
+
+        <!-- VIEW 2: WEEKLY VOLUME METRICS -->
+        <div id="volumeView" class="hidden space-y-5">
+            <div class="glass-panel p-5 rounded-2xl space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="font-bold text-sm text-white uppercase tracking-wider">Volumen Semanal Acumulado</h2>
+                        <p class="text-xs text-zinc-400">Series efectivas completadas por grupo muscular</p>
+                    </div>
+                    <span class="text-xs font-mono bg-zinc-800 px-2.5 py-1 rounded-md text-zinc-300 border border-zinc-700">Meta: 10-20 Series</span>
+                </div>
+
+                <div id="volumeBarsContainer" class="space-y-3 pt-2">
+                    <!-- Volume bars dynamically injected here -->
+                </div>
+            </div>
+
+            <!-- 1RM Epley Calculator Card -->
+            <div class="glass-panel p-5 rounded-2xl space-y-3">
+                <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                    <i data-lucide="calculator" class="w-4 h-4 text-zinc-400"></i> Estimación de 1RM (Fórmula Epley)
+                </h3>
+                <p class="text-xs text-zinc-400">Calcula tu fuerza máxima teórica basada en tus registros de peso y repeticiones.</p>
+                <div class="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                        <label class="text-[10px] text-zinc-400 font-semibold uppercase">Peso (kg)</label>
+                        <input type="number" id="calcWeight" placeholder="100" oninput="update1RMCalc()" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm text-white font-mono mt-1 focus:outline-none focus:border-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-zinc-400 font-semibold uppercase">Reps</label>
+                        <input type="number" id="calcReps" placeholder="8" oninput="update1RMCalc()" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm text-white font-mono mt-1 focus:outline-none focus:border-white">
+                    </div>
+                </div>
+                <div class="bg-zinc-900/90 p-3 rounded-xl border border-zinc-800 flex items-center justify-between mt-2">
+                    <span class="text-xs text-zinc-400">1RM Estimado:</span>
+                    <span id="calcResult" class="text-lg font-extrabold font-mono text-white">0.0 kg</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: FIRESTORE HISTORY LOG -->
+        <div id="historyView" class="hidden space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="font-bold text-sm text-white uppercase tracking-wider">Historial de Entrenamientos</h2>
+                <button onclick="fetchHistoryFromFirestore()" class="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-xs flex items-center gap-1 transition-colors">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sincronizar
+                </button>
+            </div>
+            <div id="historyContainer" class="space-y-3">
+                <div class="text-center py-8 text-zinc-500 text-xs">Cargando historial desde Firestore...</div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FLOATING TIMER BAR -->
+    <div id="timerBar" class="fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] max-w-md glass-panel p-3 rounded-2xl shadow-2xl border border-zinc-700 flex items-center justify-between z-50 transition-all duration-300 opacity-0 translate-y-32">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-mono font-extrabold text-base shadow-md">
+                <i data-lucide="timer" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <span class="text-[10px] uppercase tracking-wider font-bold text-zinc-400 block">Descanso Activo</span>
+                <span id="timerDisplay" class="font-mono text-xl font-extrabold text-white">01:30</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button onclick="addTimerTime(-15)" class="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-xs font-mono font-bold">-15s</button>
+            <button onclick="addTimerTime(15)" class="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 text-xs font-mono font-bold">+15s</button>
+            <button id="toggleTimerBtn" onclick="toggleTimer()" class="p-2.5 bg-white text-black hover:bg-zinc-200 rounded-xl font-bold transition-transform active:scale-95">
+                <i id="timerIcon" data-lucide="pause" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Compat Core & Firestore & Analytics -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
+
+    <script>
+        // --- 1. FIREBASE CONFIGURATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyChtXl03SDNmvsQmZ3NtxyP7iuotxDJLF4",
+            authDomain: "hyperlog-8be2a.firebaseapp.com",
+            projectId: "hyperlog-8be2a",
+            storageBucket: "hyperlog-8be2a.firebasestorage.app",
+            messagingSenderId: "588606966222",
+            appId: "1:588606966222:web:21f1532d63f2a49536439f",
+            measurementId: "G-QF8BHZGMJC"
+        };
+
+        // Initialize Firebase SDK
+        let db = null;
+        let analytics = null;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            analytics = firebase.analytics();
+            // Enable offline persistence
+            db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+                console.warn("Offline persistence notice:", err.code);
+            });
+            updateSyncStatus(true, "Firebase OK");
+        } catch (e) {
+            console.error("Firebase Initialization Error:", e);
+            updateSyncStatus(false, "Modo Local");
+        }
+
+        // --- 2. UPDATED ROUTINES: 4-DAY HYPERTROPHY ROUTINE (Torso / Pierna) ---
+        const ROUTINES = [
+            {
+                id: 'torso_a',
+                title: 'Lunes: Torso A',
+                subtitle: 'Enfoque Pectoral & Hombro',
+                exercises: [
+                    { id: 'press_inc_manc', name: 'Press Inclinado con Mancuernas / Multipower (30°)', muscle: 'Pecho', defaultSets: 3, targetReps: '6-8', defaultRir: '1', rest: 180 },
+                    { id: 'remo_barra_tbar', name: 'Remo con Barra / T-Bar (Apoyo en Banco)', muscle: 'Espalda', defaultSets: 3, targetReps: '6-8', defaultRir: '1', rest: 150 },
+                    { id: 'press_plano_maquina', name: 'Press Plano en Máquina o Mancuernas', muscle: 'Pecho', defaultSets: 3, targetReps: '8-10', defaultRir: '1', rest: 120 },
+                    { id: 'jalon_neutro', name: 'Jalón al Pecho Agarre Neutro', muscle: 'Espalda', defaultSets: 3, targetReps: '10-12', defaultRir: '1', rest: 120 },
+                    { id: 'elev_lat_polea', name: 'Elevaciones Laterales en Polea (Unilateral)', muscle: 'Hombros', defaultSets: 4, targetReps: '10-15', defaultRir: '0', rest: 90 },
+                    { id: 'ext_triceps_cabeza', name: 'Extensiones de Tríceps Sobre la Cabeza (Polea)', muscle: 'Tríceps', defaultSets: 3, targetReps: '10-12', defaultRir: '0', rest: 90 }
+                ]
+            },
+            {
+                id: 'pierna_a',
+                title: 'Martes: Pierna A',
+                subtitle: 'Enfoque Cuádriceps',
+                exercises: [
+                    { id: 'sentadilla_hack', name: 'Sentadilla Hack / Prensa Inclinada', muscle: 'Cuádriceps', defaultSets: 3, targetReps: '6-8', defaultRir: '1', rest: 180 },
+                    { id: 'peso_muerto_rumano', name: 'Peso Muerto Rumano (Mancuernas / Barra)', muscle: 'Isquios', defaultSets: 3, targetReps: '8-10', defaultRir: '1', rest: 150 },
+                    { id: 'zancadas_bulgaras', name: 'Zancadas Búlgaras / Prensa Pies Bajos', muscle: 'Cuádriceps', defaultSets: 3, targetReps: '10-12', defaultRir: '1', rest: 120 },
+                    { id: 'curl_femoral_sentado', name: 'Curl Femoral Sentado', muscle: 'Isquios', defaultSets: 3, targetReps: '10-12', defaultRir: '0', rest: 90 },
+                    { id: 'gemelos_pie', name: 'Elevación de Talones de Pie (Gemelos)', muscle: 'Gemelos', defaultSets: 4, targetReps: '10-12', defaultRir: '0', rest: 90 }
+                ]
+            },
+            {
+                id: 'torso_b',
+                title: 'Jueves: Torso B',
+                subtitle: 'Enfoque Espalda & Brazos',
+                exercises: [
+                    { id: 'jalon_abierto', name: 'Jalón al Pecho Agarre Abierto', muscle: 'Espalda', defaultSets: 3, targetReps: '6-8', defaultRir: '1', rest: 150 },
+                    { id: 'press_militar_manc', name: 'Press Militar con Mancuernas / Fondos Pesados', muscle: 'Hombros', defaultSets: 3, targetReps: '6-8', defaultRir: '1', rest: 150 },
+                    { id: 'remo_polea_baja', name: 'Remo en Polea Baja / Máquina (Dorsal)', muscle: 'Espalda', defaultSets: 3, targetReps: '8-10', defaultRir: '1', rest: 120 },
+                    { id: 'cruces_abajo', name: 'Cruce de Poleas desde Abajo (Pectoral Superior)', muscle: 'Pecho', defaultSets: 3, targetReps: '10-12', defaultRir: '0', rest: 90 },
+                    { id: 'elev_lat_mancuernas', name: 'Elevaciones Laterales con Mancuernas', muscle: 'Hombros', defaultSets: 4, targetReps: '12-15', defaultRir: '0', rest: 90 },
+                    { id: 'curl_predicador', name: 'Curl Predicador / Banco Scott (Bíceps)', muscle: 'Bíceps', defaultSets: 3, targetReps: '8-10', defaultRir: '0', rest: 90 }
+                ]
+            },
+            {
+                id: 'pierna_b',
+                title: 'Viernes: Pierna B',
+                subtitle: 'Enfoque Cadena Posterior & Glúteo',
+                exercises: [
+                    { id: 'curl_femoral_tumbado', name: 'Curl Femoral Tumbado / Sentado', muscle: 'Isquios', defaultSets: 3, targetReps: '8-10', defaultRir: '1', rest: 120 },
+                    { id: 'sentadilla_trasera', name: 'Sentadilla Trasera / Prensa Inclinada', muscle: 'Cuádriceps', defaultSets: 3, targetReps: '8-10', defaultRir: '1', rest: 180 },
+                    { id: 'ext_cuadriceps', name: 'Extensiones de Cuádriceps en Máquina', muscle: 'Cuádriceps', defaultSets: 3, targetReps: '12-15', defaultRir: '0', rest: 90 },
+                    { id: 'aductores_maquina', name: 'Aductores en Máquina', muscle: 'Aductores', defaultSets: 3, targetReps: '12-15', defaultRir: '0', rest: 90 },
+                    { id: 'gemelos_prensa', name: 'Gemelos en Prensa o Sentado', muscle: 'Gemelos', defaultSets: 4, targetReps: '12-15', defaultRir: '0', rest: 90 }
+                ]
+            }
+        ];
+
+        // Version tracker for structure sync
+        const ROUTINE_VERSION = 'v2_custom_torso_pierna';
+
+        // --- 3. APP STATE & LOCAL STORAGE ---
+        let selectedDayIndex = 0;
+        let sessionData = {}; // Stores live input set state
+        let timerInterval = null;
+        let timerTimeLeft = 0;
+        let timerTotalTime = 90;
+
+        // Initialize state from LocalStorage or Defaults
+        function initAppState() {
+            const storedVersion = localStorage.getItem('hyperlog_routine_version');
+            const saved = localStorage.getItem('hyperlog_current_session');
+
+            // Upgrade session state if routine version changed or old state exists
+            if (storedVersion !== ROUTINE_VERSION) {
+                localStorage.setItem('hyperlog_routine_version', ROUTINE_VERSION);
+                sessionData = {};
+                localStorage.removeItem('hyperlog_current_session');
+            } else if (saved) {
+                try { 
+                    sessionData = JSON.parse(saved); 
+                } catch(e) { 
+                    sessionData = {}; 
+                }
+            }
+
+            renderRoutine();
+            renderVolumeTracker();
+            setupNetworkListeners();
+        }
+
+        function resetCurrentSession() {
+            if (confirm("¿Deseas reiniciar los registros de la rutina actual?")) {
+                sessionData = {};
+                localStorage.removeItem('hyperlog_current_session');
+                renderRoutine();
+                renderVolumeTracker();
+            }
+        }
+
+        // --- 4. RENDER ROUTINE VIEW ---
+        function selectRoutineDay(index) {
+            selectedDayIndex = index;
+            document.querySelectorAll('.routine-day-btn').forEach((btn, idx) => {
+                if (idx === index) {
+                    btn.classList.add('border-l-2', 'border-white', 'bg-zinc-800/60');
+                    btn.classList.remove('opacity-60');
+                } else {
+                    btn.classList.remove('border-l-2', 'border-white', 'bg-zinc-800/60');
+                    btn.classList.add('opacity-60');
+                }
+            });
+            renderRoutine();
+        }
+
+        function renderRoutine() {
+            const routine = ROUTINES[selectedDayIndex];
+            document.getElementById('activeRoutineTitle').innerText = routine.title;
+            document.getElementById('activeRoutineSubtitle').innerText = routine.subtitle;
+
+            const container = document.getElementById('exercisesList');
+            container.innerHTML = '';
+
+            routine.exercises.forEach((ex) => {
+                const exData = sessionData[ex.id] || { sets: [] };
+                
+                // Ensure default set structure if empty
+                if (!exData.sets || exData.sets.length === 0) {
+                    exData.sets = Array.from({ length: ex.defaultSets }, () => ({
+                        weight: '',
+                        reps: '',
+                        rir: ex.defaultRir || '1',
+                        done: false
+                    }));
+                    sessionData[ex.id] = exData;
+                }
+
+                const exCard = document.createElement('div');
+                exCard.className = 'glass-panel p-4 rounded-2xl space-y-3';
+                
+                let setsHtml = '';
+                exData.sets.forEach((set, sIdx) => {
+                    const epley1RM = calculateEpley1RM(set.weight, set.reps);
+                    setsHtml += `
+                        <div class="grid grid-cols-12 gap-1.5 items-center bg-zinc-900/60 p-2 rounded-xl border border-zinc-800 text-xs">
+                            <span class="col-span-1 text-center font-mono font-bold text-zinc-500">${sIdx + 1}</span>
+                            
+                            <div class="col-span-3">
+                                <input type="number" placeholder="kg" value="${set.weight}" onchange="updateSet('${ex.id}', ${sIdx}, 'weight', this.value)" class="w-full bg-zinc-800 border border-zinc-700/80 rounded-lg p-1.5 text-center font-mono text-white focus:outline-none focus:border-white">
+                            </div>
+
+                            <div class="col-span-3">
+                                <input type="number" placeholder="reps" value="${set.reps}" onchange="updateSet('${ex.id}', ${sIdx}, 'reps', this.value)" class="w-full bg-zinc-800 border border-zinc-700/80 rounded-lg p-1.5 text-center font-mono text-white focus:outline-none focus:border-white">
+                            </div>
+
+                            <div class="col-span-2">
+                                <select onchange="updateSet('${ex.id}', ${sIdx}, 'rir', this.value)" class="w-full bg-zinc-800 border border-zinc-700/80 rounded-lg p-1.5 text-center font-mono text-white focus:outline-none focus:border-white">
+                                    <option value="0" ${set.rir === '0' ? 'selected' : ''}>RIR 0</option>
+                                    <option value="1" ${set.rir === '1' ? 'selected' : ''}>RIR 1</option>
+                                    <option value="2" ${set.rir === '2' ? 'selected' : ''}>RIR 2</option>
+                                    <option value="3" ${set.rir === '3' ? 'selected' : ''}>RIR 3</option>
+                                </select>
+                            </div>
+
+                            <div class="col-span-3 flex items-center justify-end gap-1">
+                                <span class="font-mono text-[10px] text-zinc-400 mr-1" title="1RM Estimado">${epley1RM > 0 ? epley1RM + 'k' : ''}</span>
+                                <button onclick="toggleSetDone('${ex.id}', ${sIdx}, ${ex.rest})" class="p-2 rounded-lg transition-colors ${set.done ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-400 hover:text-white'}">
+                                    <i data-lucide="${set.done ? 'check' : 'circle'}" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                exCard.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="font-bold text-sm text-white">${ex.name}</h3>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[10px] font-semibold uppercase text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded">${ex.muscle}</span>
+                                <span class="text-[10px] font-mono text-zinc-400">Meta: ${ex.targetReps} reps</span>
+                                <span class="text-[10px] font-mono text-zinc-500">• ${Math.floor(ex.rest / 60)}:${ex.rest % 60 === 0 ? '00' : ex.rest % 60}m desc.</span>
+                            </div>
+                        </div>
+                        <button onclick="addExtraSet('${ex.id}')" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1 rounded-lg border border-zinc-700/60 font-mono transition-colors">
+                            + Serie
+                        </button>
+                    </div>
+
+                    <!-- Table Headers -->
+                    <div class="grid grid-cols-12 gap-1.5 text-[10px] uppercase font-bold text-zinc-400 px-2">
+                        <span class="col-span-1 text-center">Set</span>
+                        <span class="col-span-3 text-center">Peso</span>
+                        <span class="col-span-3 text-center">Reps</span>
+                        <span class="col-span-2 text-center">RIR</span>
+                        <span class="col-span-3 text-right">Completar</span>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        ${setsHtml}
+                    </div>
+                `;
+                container.appendChild(exCard);
+            });
+
+            lucide.createIcons();
+        }
+
+        // --- 5. SET STATE MANAGEMENT ---
+        function updateSet(exId, sIdx, field, val) {
+            if (!sessionData[exId]) sessionData[exId] = { sets: [] };
+            sessionData[exId].sets[sIdx][field] = val;
+            saveSessionLocal();
+        }
+
+        function toggleSetDone(exId, sIdx, restSeconds) {
+            const set = sessionData[exId].sets[sIdx];
+            set.done = !set.done;
+            saveSessionLocal();
+            renderRoutine();
+
+            if (set.done) {
+                // Trigger Rest Timer automatically on completion
+                startTimer(restSeconds);
+                // Trigger Confetti Animation for set completion
+                confetti({
+                    particleCount: 25,
+                    spread: 40,
+                    origin: { y: 0.8 },
+                    colors: ['#ffffff', '#a1a1aa', '#3f3f46']
+                });
+            }
+        }
+
+        function addExtraSet(exId) {
+            if (!sessionData[exId]) sessionData[exId] = { sets: [] };
+            sessionData[exId].sets.push({ weight: '', reps: '', rir: '1', done: false });
+            saveSessionLocal();
+            renderRoutine();
+        }
+
+        function saveSessionLocal() {
+            localStorage.setItem('hyperlog_current_session', JSON.stringify(sessionData));
+            renderVolumeTracker();
+        }
+
+        // --- 6. ADVANCED METRICS (EPLEY 1RM & VOLUME) ---
+        function calculateEpley1RM(weight, reps) {
+            const w = parseFloat(weight);
+            const r = parseFloat(reps);
+            if (!w || !r || w <= 0 || r <= 0) return 0;
+            if (r === 1) return w;
+            return Math.round(w * (1 + r / 30) * 10) / 10;
+        }
+
+        function update1RMCalc() {
+            const w = document.getElementById('calcWeight').value;
+            const r = document.getElementById('calcReps').value;
+            const rm = calculateEpley1RM(w, r);
+            document.getElementById('calcResult').innerText = `${rm} kg`;
+        }
+
+        function renderVolumeTracker() {
+            const muscleVolume = { 
+                'Pecho': 0, 
+                'Espalda': 0, 
+                'Hombros': 0, 
+                'Cuádriceps': 0, 
+                'Isquios': 0, 
+                'Bíceps': 0, 
+                'Tríceps': 0, 
+                'Gemelos': 0,
+                'Aductores': 0
+            };
+
+            ROUTINES.forEach(routine => {
+                routine.exercises.forEach(ex => {
+                    const exData = sessionData[ex.id];
+                    if (exData && exData.sets) {
+                        const doneSets = exData.sets.filter(s => s.done).length;
+                        if (muscleVolume[ex.muscle] !== undefined) {
+                            muscleVolume[ex.muscle] += doneSets;
+                        }
+                    }
+                });
+            });
+
+            const container = document.getElementById('volumeBarsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const maxTarget = 20; // 20 sets optimal weekly ceiling
+
+            Object.entries(muscleVolume).forEach(([muscle, count]) => {
+                const percentage = Math.min(100, Math.round((count / maxTarget) * 100));
+                
+                const barRow = document.createElement('div');
+                barRow.className = 'space-y-1';
+                barRow.innerHTML = `
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span class="text-zinc-300">${muscle}</span>
+                        <span class="font-mono text-zinc-400">${count} / ${maxTarget} series</span>
+                    </div>
+                    <div class="w-full h-2 bg-zinc-800 rounded-full overflow-hidden border border-zinc-700/50">
+                        <div class="h-full bg-white transition-all duration-500 rounded-full" style="width: ${percentage}%"></div>
+                    </div>
+                `;
+                container.appendChild(barRow);
+            });
+        }
+
+        // --- 7. SOUND & VIBRATION REST TIMER ---
+        function startTimer(seconds) {
+            clearInterval(timerInterval);
+            timerTotalTime = seconds;
+            timerTimeLeft = seconds;
+            
+            document.getElementById('timerBar').classList.remove('translate-y-32', 'opacity-0');
+            updateTimerDisplay();
+
+            timerInterval = setInterval(() => {
+                timerTimeLeft--;
+                updateTimerDisplay();
+
+                if (timerTimeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    triggerTimerAlert();
+                }
+            }, 1000);
+        }
+
+        function addTimerTime(secs) {
+            timerTimeLeft = Math.max(0, timerTimeLeft + secs);
+            updateTimerDisplay();
+        }
+
+        function toggleTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                document.getElementById('timerIcon').setAttribute('data-lucide', 'play');
+            } else {
+                startTimer(timerTimeLeft || 90);
+                document.getElementById('timerIcon').setAttribute('data-lucide', 'pause');
+            }
+            lucide.createIcons();
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(timerTimeLeft / 60);
+            const secs = timerTimeLeft % 60;
+            document.getElementById('timerDisplay').innerText = 
+                `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function triggerTimerAlert() {
+            // Haptic vibration feedback
+            if ('vibrate' in navigator) {
+                navigator.vibrate([200, 100, 200, 100, 400]);
+            }
+
+            // Synthesized Web Audio Beep sound
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.5);
+            } catch(e) {
+                console.log("Audio feedback error:", e);
+            }
+
+            document.getElementById('timerDisplay').innerText = '00:00';
+        }
+
+        // --- 8. FIRESTORE SYNC & WORKOUT COMPLETION ---
+        async function finishSession() {
+            const routine = ROUTINES[selectedDayIndex];
+            const workoutRecord = {
+                routineId: routine.id,
+                routineTitle: routine.title,
+                timestamp: new Date().toISOString(),
+                exercises: sessionData
+            };
+
+            // Confetti Blast
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+
+            if (db) {
+                try {
+                    updateSyncStatus(true, "Guardando...");
+                    await db.collection("workouts").add(workoutRecord);
+                    updateSyncStatus(true, "Firebase OK");
+                    alert("¡Entrenamiento guardado con éxito en Firestore!");
+                } catch (e) {
+                    console.error("Firestore Save Error:", e);
+                    saveToBackupHistory(workoutRecord);
+                    updateSyncStatus(false, "Guardado Local");
+                    alert("Guardado localmente. Se sincronizará con Firestore cuando vuelva la conexión.");
+                }
+            } else {
+                saveToBackupHistory(workoutRecord);
+                alert("Guardado localmente.");
+            }
+        }
+
+        function saveToBackupHistory(record) {
+            const history = JSON.parse(localStorage.getItem('hyperlog_history') || '[]');
+            history.unshift(record);
+            localStorage.setItem('hyperlog_history', JSON.stringify(history));
+        }
+
+        async function fetchHistoryFromFirestore() {
+            const container = document.getElementById('historyContainer');
+            container.innerHTML = '<div class="text-center py-8 text-zinc-500 text-xs">Cargando registros...</div>';
+
+            if (!db) {
+                renderLocalHistory();
+                return;
+            }
+
+            try {
+                const snapshot = await db.collection("workouts").orderBy("timestamp", "desc").limit(10).get();
+                if (snapshot.empty) {
+                    container.innerHTML = '<div class="text-center py-8 text-zinc-500 text-xs">No hay entrenamientos guardados.</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const date = new Date(data.timestamp).toLocaleDateString('es-ES', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    
+                    const card = document.createElement('div');
+                    card.className = 'glass-panel p-4 rounded-xl space-y-2';
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-sm text-white">${data.routineTitle}</h4>
+                            <span class="text-[10px] font-mono text-zinc-400">${date}</span>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (e) {
+                console.error("Error fetching history:", e);
+                renderLocalHistory();
+            }
+        }
+
+        function renderLocalHistory() {
+            const container = document.getElementById('historyContainer');
+            const history = JSON.parse(localStorage.getItem('hyperlog_history') || '[]');
+            if (history.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-zinc-500 text-xs">Sin registros locales.</div>';
+                return;
+            }
+            container.innerHTML = history.map(h => `
+                <div class="glass-panel p-4 rounded-xl">
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-bold text-sm text-white">${h.routineTitle}</h4>
+                        <span class="text-[10px] font-mono text-zinc-400">${new Date(h.timestamp).toLocaleDateString()}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- 9. NETWORK STATUS & NAVIGATION HELPERS ---
+        function setupNetworkListeners() {
+            window.addEventListener('online', () => updateSyncStatus(true, "Firebase OK"));
+            window.addEventListener('offline', () => updateSyncStatus(false, "Sin Conexión"));
+        }
+
+        function updateSyncStatus(online, text) {
+            const dot = document.getElementById('syncDot');
+            const textEl = document.getElementById('syncText');
+            if (online) {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+                textEl.innerText = text;
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-amber-500";
+                textEl.innerText = text;
+            }
+        }
+
+        function switchTab(tab) {
+            document.getElementById('workoutView').classList.add('hidden');
+            document.getElementById('volumeView').classList.add('hidden');
+            document.getElementById('historyView').classList.add('hidden');
+
+            document.getElementById('tabWorkoutBtn').className = "py-2.5 rounded-lg text-zinc-400 hover:text-white transition-all flex items-center justify-center gap-1.5";
+            document.getElementById('tabVolumeBtn').className = "py-2.5 rounded-lg text-zinc-400 hover:text-white transition-all flex items-center justify-center gap-1.5";
+            document.getElementById('tabHistoryBtn').className = "py-2.5 rounded-lg text-zinc-400 hover:text-white transition-all flex items-center justify-center gap-1.5";
+
+            if (tab === 'workout') {
+                document.getElementById('workoutView').classList.remove('hidden');
+                document.getElementById('tabWorkoutBtn').className = "py-2.5 rounded-lg bg-white text-black font-bold transition-all shadow-sm flex items-center justify-center gap-1.5";
+            } else if (tab === 'volume') {
+                document.getElementById('volumeView').classList.remove('hidden');
+                document.getElementById('tabVolumeBtn').className = "py-2.5 rounded-lg bg-white text-black font-bold transition-all shadow-sm flex items-center justify-center gap-1.5";
+                renderVolumeTracker();
+            } else if (tab === 'history') {
+                document.getElementById('historyView').classList.remove('hidden');
+                document.getElementById('tabHistoryBtn').className = "py-2.5 rounded-lg bg-white text-black font-bold transition-all shadow-sm flex items-center justify-center gap-1.5";
+                fetchHistoryFromFirestore();
+            }
+        }
+
+        // Initialize App on Window Load
+        window.onload = function() {
+            initAppState();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
